@@ -7,12 +7,10 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginVertical: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    backgroundColor: "#fff",
-    elevation: 2,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    overflow: "hidden",
   },
   favoriteIcon: {
     position: "absolute",
@@ -21,7 +19,9 @@ export const styles = StyleSheet.create({
     zIndex: 1,
   },
   cardContent: {
+    flex: 1,
     gap: 3,
+    paddingRight: 8,
   },
   title: {
     fontSize: 18,
@@ -29,7 +29,8 @@ export const styles = StyleSheet.create({
     marginBottom: 4,
   },
   icon: {
-    width: 50,
-    height: 50
+    width: 80,
+    height: 80,
+    marginTop: 16,
   }
 });
