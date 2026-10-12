@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { TextInput, TouchableOpacity, View, Text } from 'react-native';
+import { TextInput, TouchableOpacity, View, Text, ScrollView } from 'react-native';
+import axios from 'axios';
 
 import { styles } from './WeatherPageStyles';
 import { Header } from '../../components/Header/Header';
@@ -13,61 +14,62 @@ export function WheatherPage() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [cityToSearch, setCityToSearch] = useState("");
   const [cityWeatherData, setCityWeatherData] = useState<Weather>();
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     getFavoriteCities()
   }, [])
-  
-  
+
+
   async function getFavoriteCities() {
-    //TODO: LIMPAR DADOS ANTERIORES DE CIDADES FAVORITAS
     setFavoriteCitiesData([]);
-
-    //TODO: MARCAR COMO CARREGANDO DADOS
+    setErrorMessage("");
     setIsLoading(true);
-    console.log("8==D")
-    //TODO: BUSCAR CIDADE FAVORITAS
-    const response = await api.get("/favoritecity");
-    console.log(response.data)
 
-    //TODO: PARA CADA ITEM DO RESPONSE BUSCAR O CLIMA PELO NOME
-    //E ASSIM SALVAR NO ESTADO DE CIDADES FAVORITAS
-    response.data.forEach(async(item: FavoriteCity) => {
-      const responseWeather = await getWeatherByCity(item.name);
-    console.log(responseWeather)
+    try {
+      const response = await api.get<FavoriteCity[]>("/favoritecity");
 
-      if(responseWeather) {
-        setFavoriteCitiesData((prevState) => [...prevState, responseWeather])
-      }
-    })
+      // Busca o clima de todas as favoritas e só termina o carregamento quando todas chegarem
+      const results = await Promise.allSettled(
+        response.data.map((item) => getWeatherByCity(item.name))
+      );
 
-    favoriteCitiesData.sort((a,b)=> a.location.name.localeCompare(b.location.name));
-    //TODO: DESMARCAR COMO CARREGANDO DADOS
+      const weathers = results
+        .filter((result) => result.status === "fulfilled")
+        .map((result) => (result as PromiseFulfilledResult<Weather>).value)
+        .sort((a, b) => a.location.name.localeCompare(b.location.name));
 
-    console.log(favoriteCitiesData)
-
-    setIsLoading(false)
+      setFavoriteCitiesData(weathers);
+    } catch (error) {
+      console.error(error);
+      setErrorMessage("Não foi possível conectar à API. Tente novamente em alguns segundos.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   async function getWeatherByCity(cityName: string) {
-        //TODO: FAZER A REQUISIÇÃO PARA A API BUSCANDO O CLIMA PELO
-        //NOME DA CIDADE E RETORNAR O RESULTADO
-        const response = await api.get<Weather>("/weather/" + cityName)
+        const response = await api.get<Weather>("/weather/" + encodeURIComponent(cityName))
 
-        if (response.status === 200) {
-            return response.data;
-        } else {
-            console.error("Erro ao carregar clima da cidade")
-        }
+        return response.data;
     }
 
-    async function onSubmitSearch(e: any) {
-        e.preventDefault();
+    async function onSubmitSearch() {
+        if (!cityToSearch.trim()) return;
 
-        const responseWeather = await getWeatherByCity(cityToSearch);
+        setErrorMessage("");
 
-        if(responseWeather){
+        try {
+          const responseWeather = await getWeatherByCity(cityToSearch.trim());
           setCityWeatherData(responseWeather);
+        } catch (error) {
+          console.error(error);
+          setCityWeatherData(undefined);
+          setErrorMessage(
+            axios.isAxiosError(error) && error.response?.status === 404
+              ? "Cidade não encontrada."
+              : "Não foi possível buscar o clima. Tente novamente."
+          );
         }
 
         setCityToSearch("")
@@ -80,7 +82,7 @@ export function WheatherPage() {
 
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Header />
         <View style={styles.formSearch}>
           <TextInput style={styles.inputSearch} placeholder='Digite o nome da cidade' value={cityToSearch}
@@ -90,13 +92,15 @@ export function WheatherPage() {
           </TouchableOpacity>
         </View>
 
-        {cityWeatherData && <WeatherCard weather={cityWeatherData} refreshCard={refreshCardSearch} />}
+        {errorMessage !== "" && <Text style={styles.errorMessage}>{errorMessage}</Text>}
+
+        {cityWeatherData &&<WeatherCard weather={cityWeatherData} refreshCard={refreshCardSearch} />}
 
         <Text style={styles.favoriteCitiesTitle}>Cidades Favoritas:</Text>
         {isLoading ? <Text>Carregando cidades favoritas...</Text> : favoriteCitiesData.length === 0 ?
         <Text>Nenhuma cidade favorita encontrada.</Text> : favoriteCitiesData.map((city) => <WeatherCard 
         key={city.location.name} weather={city} refreshCard={getFavoriteCities}/>) 
       }
-    </View>
+    </ScrollView>
   );
 }

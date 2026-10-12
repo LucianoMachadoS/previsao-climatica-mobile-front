@@ -4,7 +4,14 @@ export const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  content: {
     alignItems: 'center',
+    paddingBottom: 24,
+  },
+  errorMessage: {
+    color: "#e5484d",
+    marginVertical: 5,
   },
   favoriteCitiesTitle: {
     fontSize: 24,
